@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+
+    environment {
+        GITHUB_CRED_ID = "git"
+        GITHUB_REPO_URL = 'https://github.com/Hager706/Ivolve_OJT.git'
+        GITHUB_REPO_BRANCH = 'main'
+        DOCKER_REGISTRY = "hagert"
+        DOCKER_IMAGE = "app"
+        DOCKERHUB_CRED_ID = "hagert"
+        K8S_SA_TOKEN_CRED_ID = 'kube' 
+        DEPLOYMENT = 'jenkins-labs/labs/deployment.yaml'
+        KUBERNETES_API_SERVER = 'https://127.0.0.1:53690'  
+    }
+
+   stages {
+        stage('Clone Repository') {
+            steps {
+                retry(3) {
+                    git credentialsId: GITHUB_CRED_ID, url: GITHUB_REPO_URL, branch: GITHUB_REPO_BRANCH, depth: 1
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER} jenkins-labs/labs/."
+                }
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CRED_ID}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    sh "docker login -u ${USERNAME} -p ${PASSWORD}"
+                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                }
+            }
+        }
+        
+        stage('Delete image locally') {
+            steps { 
+                script {
+                    sh "docker rmi ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh "sed -i 's|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:.*|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER}|g' ${DEPLOYMENT}"
+
+                    withCredentials([string(credentialsId: "${K8S_SA_TOKEN_CRED_ID}", variable: 'KUBE_TOKEN')]) {
+                        sh """
+                        kubectl config set-credentials jenkins-user --token=${KUBE_TOKEN}
+                        kubectl config set-cluster kubernetes --server=${KUBERNETES_API_SERVER} --insecure-skip-tls-verify=true
+                        kubectl config set-context jenkins-context --cluster=kubernetes --user=jenkins-user
+                        kubectl config use-context jenkins-context
+                        kubectl apply -f ${DEPLOYMENT}
+                        """
+                    }
+                }
+            }
+            
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment successful!"
+        }
+        failure {
+            echo "Build or deployment failed."
+        }
+    }
+}

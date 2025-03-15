@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: lab
+  template:
+    metadata:
+      labels:
+        app: lab
+    spec:
+      containers:
+      - name: lab
+        image: hagert/lab:latest  # This will be updated dynamically
+        ports:
+        - containerPort: 80
