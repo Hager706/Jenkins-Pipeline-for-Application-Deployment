@@ -3,13 +3,13 @@ pipeline {
 
     environment {
         GITHUB_CRED_ID = "git"
-        GITHUB_REPO_URL = 'https://github.com/Hager706/Ivolve_OJT.git'
+        GITHUB_REPO_URL = 'https://github.com/Hager706/Jenkins-Pipeline-for-Application-Deployment.git'
         GITHUB_REPO_BRANCH = 'main'
         DOCKER_REGISTRY = "hagert"
         DOCKER_IMAGE = "app"
         DOCKERHUB_CRED_ID = "hagert"
         K8S_SA_TOKEN_CRED_ID = 'kube' 
-        DEPLOYMENT = 'jenkins-labs/labs/deployment.yaml'
+        DEPLOYMENT = 'deployment.yaml'
         KUBERNETES_API_SERVER = 'https://127.0.0.1:53690'  
     }
 
@@ -25,7 +25,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER} jenkins-labs/labs/."
+                    sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                 }
             }
         }
