@@ -48,8 +48,19 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh "sed -i 's|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:.*|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER}|g' ${DEPLOYMENT}"
+                    // Debugging: Check if deployment.yaml exists
+                    sh "ls -l"
+                    sh "cat ${DEPLOYMENT}"
 
+                    // Update the image tag in deployment.yaml
+                    sh """
+                    sed -i.bak "s|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:.*|${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${BUILD_NUMBER}|g" ${DEPLOYMENT}
+                    """
+
+                    // Debugging: Check the updated deployment.yaml
+                    sh "cat ${DEPLOYMENT}"
+
+                    // Deploy to Kubernetes
                     withCredentials([string(credentialsId: "${K8S_SA_TOKEN_CRED_ID}", variable: 'KUBE_TOKEN')]) {
                         sh """
                         kubectl config set-credentials jenkins-user --token=${KUBE_TOKEN}
@@ -61,7 +72,6 @@ pipeline {
                     }
                 }
             }
-            
         }
     }
 
